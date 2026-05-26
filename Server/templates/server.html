@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>SDN Controller</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg:      #060912;
+    --surface: #0d1424;
+    --border:  #1a2640;
+    --accent:  #00d4ff;
+    --green:   #00ff88;
+    --red:     #ff3d5a;
+    --yellow:  #ffd060;
+    --text:    #c8d8f0;
+    --muted:   #4a6080;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 20px; font-weight: 800; letter-spacing: 2px; color: var(--accent); }
+  .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 1.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat {
+    background: var(--surface);
+    padding: 16px 24px;
+    text-align: center;
+  }
+  .stat .num { font-size: 32px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .stat .lbl { font-size: 11px; letter-spacing: 1.5px; color: var(--muted); margin-top: 4px; text-transform: uppercase; }
+  .num.green { color: var(--green); }
+  .num.red   { color: var(--red);   }
+  .num.blue  { color: var(--accent);}
+  .num.yellow{ color: var(--yellow);}
+
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 1px;
+    background: var(--border);
+    height: calc(100vh - 120px);
+  }
+
+  .panel {
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .panel-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+
+  /* FORM */
+  .form-row { margin-bottom: 10px; }
+  .form-row label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; letter-spacing: 1px; text-transform: uppercase; }
+  .form-row input,
+  .form-row select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-row input:focus,
+  .form-row select:focus { border-color: var(--accent); }
+
+  .btn {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: opacity .2s;
+    margin-top: 4px;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-add   { background: var(--accent); color: #000; }
+  .btn-del   { background: transparent; border: 1px solid var(--red); color: var(--red); padding: 4px 10px; width: auto; font-size: 11px; border-radius: 4px; }
+
+  /* TABLES */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  td { padding: 9px 10px; border-bottom: 1px solid rgba(26,38,64,.6); font-family: 'JetBrains Mono', monospace; font-size: 12px; vertical-align: middle; }
+  tr:hover td { background: rgba(0,212,255,.04); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .badge-block  { background: rgba(255,61,90,.15);  color: var(--red);    border: 1px solid var(--red); }
+  .badge-permit { background: rgba(0,255,136,.12); color: var(--green);  border: 1px solid var(--green); }
+  .badge-active { background: rgba(0,255,136,.12); color: var(--green); }
+  .badge-tcp    { background: rgba(0,212,255,.1);  color: var(--accent); }
+  .badge-udp    { background: rgba(255,208,96,.1); color: var(--yellow); }
+
+  /* LOG */
+  .logbox {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .log-block  { color: var(--red);    }
+  .log-permit { color: var(--green);  }
+  .log-ts     { color: var(--muted);  }
+
+  /* spans across both cols */
+  .span2 { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⬡ SDN FIREWALL CONTROLLER</h1>
+  <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)">
+    <div class="pulse"></div> LIVE
+  </div>
+</header>
+
+<div class="stats-bar">
+  <div class="stat"><div class="num blue" id="sClients">0</div><div class="lbl">Nodos activos</div></div>
+  <div class="stat"><div class="num yellow" id="sRules">0</div><div class="lbl">Reglas</div></div>
+  <div class="stat"><div class="num green" id="sPermit">0</div><div class="lbl">Permitidos</div></div>
+  <div class="stat"><div class="num red" id="sBlock">0</div><div class="lbl">Bloqueados</div></div>
+</div>
+
+<div class="layout">
+
+  <!-- PANEL IZQUIERDO: Agregar regla + nodos -->
+  <div style="display:flex;flex-direction:column;background:var(--border);gap:1px">
+
+    <div class="panel" style="flex:0 0 auto">
+      <div class="panel-header">Nueva Regla</div>
+      <div class="panel-body">
+        <div class="form-row">
+          <label>IP Origen</label>
+          <input id="src_ip" placeholder="192.168.0.11  ó  *">
+        </div>
+        <div class="form-row">
+          <label>Puerto Destino</label>
+          <input id="dst_port" placeholder="9002  ó  *">
+        </div>
+        <div class="form-row">
+          <label>Protocolo</label>
+          <select id="protocol">
+            <option>TCP</option><option>UDP</option><option>*</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Acción</label>
+          <select id="action">
+            <option>BLOCK</option><option>PERMIT</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Prioridad</label>
+          <input id="priority" type="number" placeholder="10">
+        </div>
+        <button class="btn btn-add" onclick="addRule()">+ AGREGAR REGLA</button>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1">
+      <div class="panel-header">Nodos Conectados</div>
+      <div class="panel-body" style="padding:0">
+        <table>
+          <thead><tr><th>ID</th><th>IP</th><th>Estado</th><th>Visto</th></tr></thead>
+          <tbody id="clientsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PANEL DERECHO: Reglas + Eventos -->
+  <div style="display:flex;flex-direction:column;background:var(--border);gap:1px">
+
+    <div class="panel" style="flex: 0 0 45%">
+      <div class="panel-header">Reglas Activas</div>
+      <div class="panel-body" style="padding:0">
+        <table>
+          <thead><tr><th>#</th><th>IP Origen</th><th>Puerto</th><th>Proto</th><th>Acción</th><th>Pri</th><th></th></tr></thead>
+          <tbody id="rulesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1">
+      <div class="panel-header">Log de Eventos</div>
+      <div class="panel-body">
+        <div class="logbox" id="logbox"></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+async function loadData() {
+  try {
+    const [clients, stats, evlog, rules] = await Promise.all([
+      fetch('/clients').then(r => r.json()),
+      fetch('/stats').then(r => r.json()),
+      fetch('/event_log').then(r => r.json()),
+      fetch('/rules').then(r => r.json())
+    ]);
+
+    // Stats
+    document.getElementById('sClients').textContent = stats.active_clients;
+    document.getElementById('sRules').textContent   = stats.total_rules;
+    document.getElementById('sPermit').textContent  = stats.permitted ?? (stats.total_events - (stats.blocked ?? 0));
+    document.getElementById('sBlock').textContent   = stats.blocked ?? 0;
+
+    // Clients
+    const cb = document.getElementById('clientsBody');
+    cb.innerHTML = clients.clients.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td>${c.ip}</td>
+        <td><span class="badge badge-active">● activo</span></td>
+        <td style="color:var(--muted);font-size:11px">${c.last_seen.split(' ')[1]}</td>
+      </tr>`).join('');
+
+    // Rules
+    const rb = document.getElementById('rulesBody');
+    rb.innerHTML = rules.map(r => `
+      <tr>
+        <td style="color:var(--muted)">${r.id}</td>
+        <td>${r.src_ip}</td>
+        <td>${r.dst_port}</td>
+        <td><span class="badge badge-${r.protocol.toLowerCase()}">${r.protocol}</span></td>
+        <td><span class="badge badge-${r.action.toLowerCase()}">${r.action}</span></td>
+        <td style="color:var(--muted)">${r.priority}</td>
+        <td><button class="btn btn-del" onclick="deleteRule(${r.id})">✕</button></td>
+      </tr>`).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">Sin reglas</td></tr>';
+
+    // Events log
+    const lb = document.getElementById('logbox');
+    const evs = [...evlog.events].reverse().slice(0, 100);
+    lb.innerHTML = evs.map(e => {
+      const cls = e.action === 'BLOCK' ? 'log-block' : 'log-permit';
+      const icon = e.action === 'BLOCK' ? '✗' : '✓';
+      return `<div><span class="log-ts">${e.timestamp}</span>  <span class="${cls}">${icon} ${e.action}</span>  ${e.src_ip}:${e.src_port} → ${e.dst_ip}:${e.dst_port} <span style="color:var(--muted)">${e.protocol}</span>  <span style="color:var(--yellow)">"${e.message}"</span></div>`;
+    }).join('');
+
+  } catch(err) {
+    console.error('loadData error:', err);
+  }
+}
+
+async function addRule() {
+  const rule = {
+    src_ip:   document.getElementById('src_ip').value.trim()   || '*',
+    dst_port: document.getElementById('dst_port').value.trim() || '*',
+    protocol: document.getElementById('protocol').value,
+    action:   document.getElementById('action').value,
+    priority: parseInt(document.getElementById('priority').value) || 10
+  };
+  await fetch('/add_rule', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(rule)
+  });
+  document.getElementById('src_ip').value   = '';
+  document.getElementById('dst_port').value = '';
+  document.getElementById('priority').value = '';
+  loadData();
+}
+
+async function deleteRule(id) {
+  await fetch(`/delete_rule/${id}`, { method: 'DELETE' });
+  loadData();
+}
+
+setInterval(loadData, 3000);  // cada 3 segundos (no 8080ms)
+loadData();
+</script>
+</body>
+</html>
