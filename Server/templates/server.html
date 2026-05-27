@@ -138,6 +138,7 @@
   }
   .badge-block  { background: rgba(255,61,90,.15);  color: var(--red);    border: 1px solid var(--red); }
   .badge-permit { background: rgba(0,255,136,.12); color: var(--green);  border: 1px solid var(--green); }
+  .badge-permit { background: rgba(255,208,96,.15); color: var(--yellow);  border: 1px solid var(--yellow); }
   .badge-active { background: rgba(0,255,136,.12); color: var(--green); }
   .badge-tcp    { background: rgba(0,212,255,.1);  color: var(--accent); }
   .badge-udp    { background: rgba(255,208,96,.1); color: var(--yellow); }
@@ -151,6 +152,7 @@
   }
   .log-block  { color: var(--red);    }
   .log-permit { color: var(--green);  }
+  .log-alert  { color: var(--yellow); }
   .log-ts     { color: var(--muted);  }
 
   /* spans across both cols */
@@ -170,6 +172,7 @@
   <div class="stat"><div class="num blue" id="sClients">0</div><div class="lbl">Nodos activos</div></div>
   <div class="stat"><div class="num yellow" id="sRules">0</div><div class="lbl">Reglas</div></div>
   <div class="stat"><div class="num green" id="sPermit">0</div><div class="lbl">Permitidos</div></div>
+  <div class="stat"><div class="num yellow" id="sAlerts">0</div><div class="lbl">Alertas</div></div>
   <div class="stat"><div class="num red" id="sBlock">0</div><div class="lbl">Bloqueados</div></div>
 </div>
 
@@ -186,6 +189,10 @@
           <input id="src_ip" placeholder="192.168.0.11  ó  *">
         </div>
         <div class="form-row">
+          <label>Ip Destino</label>
+          <input id="dst_ip" placeholder="192.168.0.11  ó  *">
+        </div>
+        <div class="form-row">
           <label>Puerto Destino</label>
           <input id="dst_port" placeholder="9002  ó  *">
         </div>
@@ -198,7 +205,7 @@
         <div class="form-row">
           <label>Acción</label>
           <select id="action">
-            <option>BLOCK</option><option>PERMIT</option>
+            <option>BLOCK</option><option>PERMIT</option><option>ALERT</option>
           </select>
         </div>
         <div class="form-row">
@@ -228,7 +235,7 @@
       <div class="panel-header">Reglas Activas</div>
       <div class="panel-body" style="padding:0">
         <table>
-          <thead><tr><th>#</th><th>IP Origen</th><th>Puerto</th><th>Proto</th><th>Acción</th><th>Pri</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>IP Origen</th><th>IP Destino</th><th>Puerto</th><th>Proto</th><th>Acción</th><th>Pri</th><th></th></tr></thead>
           <tbody id="rulesBody"></tbody>
         </table>
       </div>
@@ -259,7 +266,9 @@ async function loadData() {
     document.getElementById('sClients').textContent = stats.active_clients;
     document.getElementById('sRules').textContent   = stats.total_rules;
     document.getElementById('sPermit').textContent  = stats.permitted ?? (stats.total_events - (stats.blocked ?? 0));
+    document.getElementById('sAlerts').textContent  = stats.alerts ?? 0;
     document.getElementById('sBlock').textContent   = stats.blocked ?? 0;
+    
 
     // Clients
     const cb = document.getElementById('clientsBody');
@@ -277,19 +286,20 @@ async function loadData() {
       <tr>
         <td style="color:var(--muted)">${r.id}</td>
         <td>${r.src_ip}</td>
+        <td>${r.dst_ip || '*'}</td>
         <td>${r.dst_port}</td>
         <td><span class="badge badge-${r.protocol.toLowerCase()}">${r.protocol}</span></td>
         <td><span class="badge badge-${r.action.toLowerCase()}">${r.action}</span></td>
         <td style="color:var(--muted)">${r.priority}</td>
         <td><button class="btn btn-del" onclick="deleteRule(${r.id})">✕</button></td>
-      </tr>`).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">Sin reglas</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">Sin reglas</td></tr>';
 
     // Events log
     const lb = document.getElementById('logbox');
     const evs = [...evlog.events].reverse().slice(0, 100);
     lb.innerHTML = evs.map(e => {
-      const cls = e.action === 'BLOCK' ? 'log-block' : 'log-permit';
-      const icon = e.action === 'BLOCK' ? '✗' : '✓';
+      const cls = e.action === 'BLOCK' ? 'log-block' : e.action === 'ALERT' ? 'log-alert': 'log-permit';
+      const icon = e.action === 'BLOCK' ? '✗' : e.action === 'ALERT' ? '⚠' : '✓';
       return `<div><span class="log-ts">${e.timestamp}</span>  <span class="${cls}">${icon} ${e.action}</span>  ${e.src_ip}:${e.src_port} → ${e.dst_ip}:${e.dst_port} <span style="color:var(--muted)">${e.protocol}</span>  <span style="color:var(--yellow)">"${e.message}"</span></div>`;
     }).join('');
 
@@ -301,6 +311,7 @@ async function loadData() {
 async function addRule() {
   const rule = {
     src_ip:   document.getElementById('src_ip').value.trim()   || '*',
+    dst_ip:   document.getElementById('dst_ip').value.trim()   || '*',
     dst_port: document.getElementById('dst_port').value.trim() || '*',
     protocol: document.getElementById('protocol').value,
     action:   document.getElementById('action').value,
