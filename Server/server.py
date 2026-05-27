@@ -137,11 +137,7 @@ def send_message():
         add_log(f"BLOQUEADO [#{rule_id}]: {src_ip} → {dst_ip}:{dst_port}/{protocol}")
         return jsonify({"status": "BLOCK",
                         "reason": f"Bloqueado por regla #{rule_id}"}), 403
-    
-    if action == "ALERT":
-        add_log(f"ALERTA [#{rule_id}]: {src_ip} → {dst_ip}:{dst_port}/{protocol}")
-        return jsonify({"status": "ALERT",
-                        "reason": f"Alerta, usuario bloqueado por regla #{rule_id}"}), 403
+
 
     # Indicar al destino que abra el puerto
     api_url = f"http://{dst_ip}:{dst_node['api_port']}"
@@ -253,7 +249,7 @@ def get_logs():
 
 @app.route("/stats")
 def stats():
-    blocked = sum(1 for e in events if e.get("action") in ("BLOCK", "ALERT"))
+    blocked = sum(1 for e in events if e.get("action") == "BLOCK")
     alerts = sum(1 for e in events if e.get("action") == "ALERT")
     return jsonify({
         "active_clients": len(clients),

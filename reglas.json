@@ -1,1 +1,52 @@
-[]
+[
+    {
+        "id": 1,
+        "src_ip": "10.23.55.214",
+        "dst_ip": "10.21.91.146",
+        "dst_port": "6001",
+        "protocol": "UDP",
+        "action": "PERMIT",
+        "priority": 10,
+        "created_at": "2026-05-27 13:36:38"
+    },
+    {
+        "id": 2,
+        "src_ip": "10.23.55.214",
+        "dst_ip": "10.21.91.194",
+        "dst_port": "6002",
+        "protocol": "UDP",
+        "action": "BLOCK",
+        "priority": 30,
+        "created_at": "2026-05-27 13:37:07"
+    },
+    {
+        "id": 3,
+        "src_ip": "*",
+        "dst_ip": "10.21.91.146",
+        "dst_port": "8080",
+        "protocol": "TCP",
+        "action": "ALERT",
+        "priority": 20,
+        "created_at": "2026-05-27 13:37:36"
+    },
+    {
+        "id": 4,
+        "src_ip": "10.21.91.194",
+        "dst_ip": "10.23.55.214",
+        "dst_port": "7000",
+        "protocol": "UDP",
+        "action": "BLOCK",
+        "priority": 40,
+        "created_at": "2026-05-27 13:38:01"
+    },
+    {
+        "id": 5,
+        "src_ip": "*",
+        "dst_ip": "*",
+        "dst_port": "9999",
+        "protocol": "UDP",
+        "action": "ALERT",
+        "priority": 5,
+        "created_at": "2026-05-27 13:38:14"
+    }
+]
